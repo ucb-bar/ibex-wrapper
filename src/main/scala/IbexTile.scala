@@ -21,41 +21,46 @@ import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.prci.ClockSinkParameters  
 
 case class IbexCoreParams(
-  val bootFreqHz: BigInt = BigInt(1700000000),              // Frequency
+  val bootFreqHz: BigInt = BigInt(1700000000),
+  val pmpEnable: Int = 0,
   val pmpGranularity: Int = 0,
   val pmpNumRegions: Int = 4,
+  val rv32e: Int = 0,
   val rv32m: String = "ibex_pkg::RV32MFast",
   val rv32b: String = "ibex_pkg::RV32BNone",
-  val regFile: String = "ibex_pkg::RegFileFF"
+  val regFile: String = "ibex_pkg::RegFileFF",
+  val branchTargetALU: Int = 0,
+  val wbStage: Int = 0,
+  val branchPredictor: Int = 0
 ) extends CoreParams {
-  val useVM: Boolean = false                  // Support virtual memory
-  val useUser: Boolean = true                // Support user mode
-  val useSupervisor: Boolean = false         // Support supervisor mode
-  val useDebug: Boolean = true               // Support RISC-V debug specs
-  val useAtomics: Boolean = false            // Support A extension
-  val useAtomicsOnlyForIO: Boolean = false    // Support A extension for memory-mapped IO (may be true even if useAtomics is false)
-  val useCompressed: Boolean = true         // Support C extension
-  override val useVector: Boolean = false      // Support V extension
-  val useSCIE: Boolean = false               // Support custom instructions (in custom-0 and custom-1)
-  val useRVE: Boolean = true                // Use E base ISA
+  val useVM: Boolean = false
+  val useUser: Boolean = true
+  val useSupervisor: Boolean = false
+  val useDebug: Boolean = true
+  val useAtomics: Boolean = false
+  val useAtomicsOnlyForIO: Boolean = false
+  val useCompressed: Boolean = true
+  override val useVector: Boolean = false
+  val useSCIE: Boolean = false
+  val useRVE: Boolean = true
   val mulDiv: Option[MulDivParams] = Some(MulDivParams()) // copied from Rocket
-  val fpu: Option[FPUParams] = None //NO FLOATING POINT          // F and D extensions and related setting (see below)
-  val fetchWidth: Int = 1                // Max # of insts fetched every cycle
-  val decodeWidth: Int = 1               // Max # of insts decoded every cycle
-  val retireWidth: Int = 2               // Max # of insts retired every cycle
-  val instBits: Int = if (useCompressed) 16 else 32                   // Instruction bits (if 32 bit and 64 bit are both supported, use 64)
-  val nLocalInterrupts: Int = 15          // # of local interrupts (see SiFive interrupt cookbook)
-  val nPMPs: Int = 0                     // # of Physical Memory Protection units
-  val nBreakpoints: Int = 0              // # of hardware breakpoints supported (in RISC-V debug specs)
-  val useBPWatch: Boolean = false            // Support hardware breakpoints
-  val nPerfCounters: Int = 29             // # of supported performance counters
-  val haveBasicCounters: Boolean = true     // Support basic counters defined in the RISC-V counter extension
-  val haveFSDirty: Boolean = false           // If true, the core will set FS field in mstatus CSR to dirty when appropriate
-  val misaWritable: Boolean = false          // Support writable misa CSR (like variable instruction bits)
-  val haveCFlush: Boolean = false            // Rocket specific: enables Rocket's custom instruction extension to flush the cache
-  val nL2TLBEntries: Int = 512 //??             // # of L2 TLB entries
-  val mtvecInit: Option[BigInt] = Some(BigInt(0))       // mtvec CSR (of V extension) initial value
-  val mtvecWritable: Boolean = true          // If mtvec CSR is writable
+  val fpu: Option[FPUParams] = None //floating point not supported
+  val fetchWidth: Int = 1
+  val decodeWidth: Int = 1
+  val retireWidth: Int = 2
+  val instBits: Int = if (useCompressed) 16 else 32
+  val nLocalInterrupts: Int = 15
+  val nPMPs: Int = 0
+  val nBreakpoints: Int = 0
+  val useBPWatch: Boolean = false
+  val nPerfCounters: Int = 29
+  val haveBasicCounters: Boolean = true
+  val haveFSDirty: Boolean = false
+  val misaWritable: Boolean = false
+  val haveCFlush: Boolean = false
+  val nL2TLBEntries: Int = 0
+  val mtvecInit: Option[BigInt] = Some(BigInt(0))
+  val mtvecWritable: Boolean = true
   val nL2TLBWays: Int = 1
   val lrscCycles: Int = 80 // copied from Rocket
   val mcontextWidth: Int = 0 // TODO: Check
@@ -116,8 +121,6 @@ class IbexTile private(
   val portName = "ibex-mem-port"
   val node = TLIdentityNode()
 
-  //check how many inflight requests supported at once
-  //TEMP: borrowed from sodor
   val dmemNode = TLClientNode(
     Seq(TLMasterPortParameters.v1(
       clients = Seq(TLMasterParameters.v1(
@@ -147,15 +150,14 @@ class IbexTile private(
 
   ResourceBinding {
     Resource(cpuDevice, "reg").bind(ResourceAddress(hartId))
-  } //check resource address
+  }
 
-  def connectIbexInterrupts(debug: Bool, msip: Bool, mtip: Bool, meip: Bool, lip: UInt) {
+  def connectIbexInterrupts(debug: Bool, msip: Bool, mtip: Bool, meip: Bool) {
     val (interrupts, _) = intSinkNode.in(0)
     debug := interrupts(0)
-    mtip := interrupts(2) //mtip
-    msip := interrupts(1) //msip
-    meip := interrupts(3) //meip
-    //lip := interrupts(5) //lip
+    msip := interrupts(1)
+    mtip := interrupts(2)
+    meip := interrupts(3)
   }
 
 }
@@ -173,17 +175,23 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   val mhmpCounterWid = 40
 
   val core = Module(new IbexCoreBlackbox(
+    pmpEnable = outer.ibexParams.core.pmpEnable,
     pmpGranularity = outer.ibexParams.core.pmpGranularity,
     pmpNumRegions = outer.ibexParams.core.pmpNumRegions,
     mhpmCounterNum = mhpmCounterNumber,
     mhpmCounterWidth = mhmpCounterWid,
+    rv32e = outer.ibexParams.core.rv32e,
     rv32m = outer.ibexParams.core.rv32m,
     rv32b = outer.ibexParams.core.rv32b,
     regfile = outer.ibexParams.core.regFile,
+    branchTargetALU = outer.ibexParams.core.branchTargetALU,
+    wbStage = outer.ibexParams.core.wbStage,
+    branchPredictor = outer.ibexParams.core.branchPredictor,
     dbgHwBreakNum = debugHwBreakNum,
     dmHaltAddr = dmHaltAddress,
     dmExceptionAddr = dmExceptionAddress
   ))
+
 
   //connect signals
   core.io.clk_i := clock
@@ -191,63 +199,37 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   core.io.boot_addr_i := outer.resetVectorSinkNode.bundle
   core.io.hart_id_i := outer.hartIdSinkNode.bundle
 
-  /*val int_bundle = new TileInterrupts()
-  outer.decodeCoreInterrupts(int_bundle)
-  val lip = Wire(UInt())
-  lip := int_bundle.lip.asUInt
-  core.io.debug_req_i := Wire(int_bundle.debug)
-  core.io.irq_timer_i := Wire(int_bundle.mtip)
-  core.io.irq_software_i := Wire(int_bundle.msip)
-  core.io.irq_external_i := Wire(int_bundle.meip)
-  core.io.irq_fast_i := lip*/ //type mismatch, uint vs bool
-  //core.io.irq_nm_i := int_bundle.nmi.rnmi //recoverable nmi
-
-  outer.connectIbexInterrupts(core.io.debug_req_i, core.io.irq_software_i, core.io.irq_timer_i, core.io.irq_external_i, core.io.irq_fast_i)
-  //core.io.irq_nm_i := int_bundle.nmi.rnmi //recoverable nmi
 
 
+  outer.connectIbexInterrupts(core.io.debug_req_i, core.io.irq_software_i, core.io.irq_timer_i, core.io.irq_external_i)
+  core.io.irq_nm_i := 0.U //recoverable nmi, tying off
+  core.io.irq_fast_i := 0.U //local interrupts, tying off
 
   // MEMORY
-  // dmem
+  // DMEM
   val (dmem, dmem_edge) = outer.dmemNode.out(0)
 
   val s_ready :: s_active :: s_inflight :: Nil = Enum(3)
   val dmem_state = RegInit(s_ready)
 
-  val dmem_addr = Reg(UInt(32.W)) //32 bit addr
+  val dmem_addr = Reg(UInt(32.W))
   val dmem_data = Reg(UInt(64.W))
   val dmem_mask = Reg(UInt(8.W))
-  //val dmem_w_mask = Reg(UInt(8.W))
   val byte_en = Reg(UInt(4.W))
   val num_bytes = Reg(UInt(3.W))
   val r_size = Reg(UInt(2.W))
   val w_size = Reg(UInt(2.W))
-  val not_dw_aligned = Reg(Bool())
-  r_size := 2.U //2^2 = 4 bytes
-
-  /*ISA expects LSByte of write data to be written. TL mask is which byte of write data to write.
-    dmem_mask should always be f, 3, or 1 (with appropriate word alignment). Use data_be_o to adjust address.
-  */
+  val dmem_word_sel = Reg(Bool()) //used to handle size difference between TL data bus and Ibex input data
+  r_size := 2.U
 
   when (dmem_state === s_ready && core.io.data_req_o) {
     dmem_state := s_active
-    dmem_addr := core.io.data_addr_o + (PriorityEncoder(core.io.data_be_o) * core.io.data_we_o)
-    dmem_data := core.io.data_wdata_o << (32.U * ((core.io.data_addr_o & 4.U) === 4.U))
+    dmem_addr := core.io.data_addr_o + (PriorityEncoder(core.io.data_be_o) * core.io.data_we_o) //if write, shift address based on mask
+    dmem_data := core.io.data_wdata_o << (32.U * ((core.io.data_addr_o & 4.U) === 4.U)) //shift based on word alignment
     byte_en := core.io.data_be_o
-
-    /*when (PopCount(core.io.data_be_o) === 1.U) {
-      dmem_mask := 1.U << (4.U * ((core.io.data_addr_o & 4.U) === 4.U))
-    } .elsewhen (PopCount(core.io.data_be_o) === 2.U) {
-      dmem_mask := 3.U << (4.U * ((core.io.data_addr_o & 4.U) === 4.U))
-    } .otherwise {
-      dmem_mask := core.io.data_be_o << (4.U * ((core.io.data_addr_o & 4.U) === 4.U))
-    }*/
-
     dmem_mask := core.io.data_be_o << (4.U * ((core.io.data_addr_o & 4.U) === 4.U))
-
-    //num_bytes := PopCount(byte_en)
     w_size := PriorityEncoder(PopCount(core.io.data_be_o)) //log2Ceil
-    not_dw_aligned := ((core.io.data_addr_o & 4.U) === 4.U)
+    dmem_word_sel := ((core.io.data_addr_o & 4.U) === 4.U)
   }
   when (dmem_state === s_active && dmem.a.fire()) {
     dmem_state := s_inflight
@@ -256,23 +238,15 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
     dmem_state := s_ready
   }
   dmem.a.valid := dmem_state === s_active
-  core.io.data_gnt_i := dmem_state === s_ready && core.io.data_req_o // check, data_gnt is expected to be high for only 1 cycle at a time
+  core.io.data_gnt_i := dmem_state === s_ready && core.io.data_req_o
   dmem.d.ready := true.B
-  core.io.data_rvalid_i := dmem.d.valid //check, data_rvalid can only be high for 1 cycle (appears to align w tilelink spec)
-
-  //val mask = FillInterleaved(8, dmem_mask) //expand mask to 32 bits
-  //printf("write mask = %b\n", byte_en)
-  //printf("dmem_mask = %b\n", dmem_mask)
-  //printf(p"num_bytes = ${num_bytes}\n")
-  //printf(p"w_size = ${w_size}\n")
-
-  //seperate write addr/mask and read addr/mask???
+  core.io.data_rvalid_i := dmem.d.valid
 
   val dmem_get = dmem_edge.Get(0.U, dmem_addr, r_size)._2
   val dmem_put = dmem_edge.Put(0.U, dmem_addr, w_size, dmem_data, dmem_mask)._2
 
   dmem.a.bits := Mux(core.io.data_we_o, dmem_put, dmem_get)             //write or read depending on write enable
-  core.io.data_rdata_i := dmem.d.bits.data >> (32.U * not_dw_aligned)   //read data
+  core.io.data_rdata_i := dmem.d.bits.data >> (32.U * dmem_word_sel)   //read data
   core.io.data_err_i := dmem.d.bits.corrupt | dmem.d.bits.denied        //set error
 
   //unused
@@ -281,13 +255,11 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   dmem.e.ready := true.B
 
 
-  //imem
+  //IMEM
   val (imem, imem_edge) = outer.imemNode.out(0)
   val imem_state = RegInit(s_ready)
 
-  val imem_addr = Reg(UInt(32.W)) //32 bit addr
-  val r_lower = Reg(UInt(32.W))
-  //val r_upper = Reg(UInt(32.W))
+  val imem_addr = Reg(UInt(32.W))
   val r_word_sel = Reg(Bool()) // 1 for upper half of doubleword, 0 for lower half
 
   when (imem_state === s_ready && core.io.instr_req_o) {
@@ -303,20 +275,14 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   }
 
   imem.a.valid := imem_state === s_active
-  core.io.instr_gnt_i := imem_state === s_ready // check
+  core.io.instr_gnt_i := imem_state === s_ready
   imem.d.ready := true.B
-  core.io.instr_rvalid_i := imem.d.valid //check
+  core.io.instr_rvalid_i := imem.d.valid
 
   val imem_get = imem_edge.Get(0.U, imem_addr, r_size)._2
 
   imem.a.bits := imem_get
-  //r_upper := imem.d.bits.data >> 32
-  //r_lower := imem.d.bits.data
   core.io.instr_rdata_i := imem.d.bits.data >> (32.U * r_word_sel)
-  //Mux(r_word_sel, r_upper, r_lower) // 1 cycle delay
-  //core.io.instr_rdata_i := imem.d.bits.data //d channel returns 64 bits of data
-  // tl reads from doubleword aligned addr, must pick which half to read depending on instr_addr
-  // ibex addr is word aligned
   core.io.instr_err_i := imem.d.bits.corrupt | imem.d.bits.denied
 
   //unused

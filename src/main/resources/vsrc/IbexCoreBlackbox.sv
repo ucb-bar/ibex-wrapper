@@ -1,17 +1,21 @@
 module IbexCoreBlackbox
 	#(
-		//parameters, currently just int (not bit)
-		parameter PMP_GRANULARITY = 0,
-		parameter PMP_NUM_REGIONS = 0,
 		parameter MHPM_COUNTER_NUM = 0,
 		parameter MHPM_COUNTER_WIDTH = 0,
-		parameter RV32M = ibex_pkg::RV32MFast, //default 2
-    	parameter RV32B = ibex_pkg::RV32BNone, //default 0
-    	parameter REGFILE = ibex_pkg::RegFileFF, //default 0
+		parameter RV32E = 0,
+		parameter RV32M = ibex_pkg::RV32MFast,
+    	parameter RV32B = ibex_pkg::RV32BNone,
+    	parameter REGFILE = ibex_pkg::RegFileFF,
+    	parameter BRANCH_TARGET_ALU = 0,
+    	parameter WB_STAGE = 0,
+    	parameter BRANCH_PREDICTOR = 0,
+    	parameter PMP_ENABLE = 0,
+    	parameter PMP_GRANULARITY = 0,
+		parameter PMP_NUM_REGIONS = 0,
 		parameter DBG_HW_BREAK_NUM = 0,
 		parameter [31:0] DM_HALT_ADDR = 0,
 		parameter [31:0] DM_EXCEPTION_ADDR = 0
-	) //TODO !!!!!!!!!!!
+	) 
 ( 
 	//inputs/outputs
 	// Clock and Reset
@@ -19,9 +23,7 @@ module IbexCoreBlackbox
     input rst_ni,
 
     input test_en_i,     // enable all clock gates for testing
-    //input  prim_ram_1p_pkg::ram_1p_cfg_t ram_cfg_i,
 
-    //split up struct TODO: connect these somewhere?
     input ram_cfg_i_ram_cfg_en,
     input [3:0] ram_cfg_i_ram_cfg,
     input ram_cfg_i_rf_cfg_en,
@@ -50,15 +52,14 @@ module IbexCoreBlackbox
     input  data_err_i,
 
     // Interrupt inputs
-    input irq_software_i, //msip, software interrupt
-    input irq_timer_i, //mtip
-    input irq_external_i, //meip? external interrupt
-    input [14:0] irq_fast_i, //fast local interrupts??
-    input irq_nm_i,       //nmi non-maskeable interrupt
+    input irq_software_i, 		//msip
+    input irq_timer_i, 			//mtip
+    input irq_external_i, 		//meip
+    input [14:0] irq_fast_i, 	//fast local interrupts
+    input irq_nm_i,       		//nmi
 
     // Debug Interface
     input debug_req_i, //debug
-    //output ibex_pkg::crash_dump_t        crash_dump_o,
 
     //debugging output for ibex_lockstep.sv
     output [31:0] crash_dump_o_current_pc,
@@ -80,20 +81,20 @@ module IbexCoreBlackbox
 	ibex_pkg::crash_dump_t ibex_crash_dump;
 
 	ibex_top #(
-		.PMPEnable(1'b0),
+		.PMPEnable(PMP_ENABLE),
 	    .PMPGranularity(PMP_GRANULARITY),
 	    .PMPNumRegions(PMP_NUM_REGIONS),
 	    .MHPMCounterNum(MHPM_COUNTER_NUM),
 	    .MHPMCounterWidth(MHPM_COUNTER_WIDTH),
-	    .RV32E(1'b0),
+	    .RV32E(RV32E),
 	    .RV32M(RV32M),
 	    .RV32B(RV32B),
 	    .RegFile(REGFILE),
-	    .BranchTargetALU(1'b0),
-	    .WritebackStage(1'b0),
+	    .BranchTargetALU(BRANCH_TARGET_ALU),
+	    .WritebackStage(WB_STAGE),
 	    .ICache(1'b0),
 	    .ICacheECC(1'b0),
-	    .BranchPredictor(1'b0),
+	    .BranchPredictor(BRANCH_PREDICTOR),
 	    .DbgTriggerEn(1'b0),
 	    .DbgHwBreakNum(DBG_HW_BREAK_NUM),
 	    .SecureIbex(1'b0),
@@ -103,7 +104,7 @@ module IbexCoreBlackbox
 	    .clk_i,
 	    .rst_ni,
 	    .test_en_i,
-	    .ram_cfg_i ( ibex_ram_config ), //CHECK
+	    .ram_cfg_i ( ibex_ram_config ),
 	    .hart_id_i,
 	    .boot_addr_i,
 		.instr_req_o,

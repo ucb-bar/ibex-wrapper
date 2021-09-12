@@ -8,7 +8,6 @@ import chisel3.experimental.{IntParam, StringParam, RawParam}
 
 import scala.collection.mutable.{ListBuffer}
 
-//FIXME: probably dont need axi4
 import freechips.rocketchip.config._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.devices.tilelink._
@@ -23,29 +22,39 @@ import freechips.rocketchip.tile._
 import freechips.rocketchip.amba.axi4._
 
 class IbexCoreBlackbox(
+	pmpEnable: Int,
 	pmpGranularity: Int,
 	pmpNumRegions: Int,
 	mhpmCounterNum: Int,
 	mhpmCounterWidth: Int,
+	rv32e: Int,
 	rv32m: String,
 	rv32b: String,
 	regfile: String,
+	branchTargetALU: Int,
+	wbStage: Int,
+	branchPredictor: Int,
 	dbgHwBreakNum: Int,
 	dmHaltAddr: Int,
 	dmExceptionAddr: Int)
 	extends BlackBox(
 		Map(
+			"PMP_ENABLE" -> IntParam(pmpEnable),
 			"PMP_GRANULARITY" -> IntParam(pmpGranularity),
 			"PMP_NUM_REGIONS" -> IntParam(pmpNumRegions),
 			"MHPM_COUNTER_NUM" -> IntParam(mhpmCounterNum),
 			"MHPM_COUNTER_WIDTH" -> IntParam(mhpmCounterWidth),
+			"RV32E" -> IntParam(rv32e),
 			"RV32M" -> RawParam(rv32m),
     		"RV32B" -> RawParam(rv32b),
     		"REGFILE" -> RawParam(regfile),
+    		"BRANCH_TARGET_ALU" -> IntParam(branchTargetALU),
+    		"WB_STAGE" -> IntParam(wbStage),
+    		"BRANCH_PREDICTOR" -> IntParam(branchPredictor),
 			"DBG_HW_BREAK_NUM" -> IntParam(dbgHwBreakNum),
 			"DM_HALT_ADDR" -> IntParam(dmHaltAddr),
 			"DM_EXCEPTION_ADDR" -> IntParam(dmExceptionAddr))
-	)
+)
 	with HasBlackBoxResource
 {
 	val io = IO(new Bundle {
@@ -53,9 +62,9 @@ class IbexCoreBlackbox(
     	val rst_ni = Input(Bool())
     	val test_en_i = Input(Bool())
     	val ram_cfg_i_ram_cfg_en = Input(Bool())
-    	val ram_cfg_i_ram_cfg = Input(UInt(4.W)) //logic [3:0]
+    	val ram_cfg_i_ram_cfg = Input(UInt(4.W))
     	val ram_cfg_i_rf_cfg_en = Input(Bool())
-    	val ram_cfg_i_rf_cfg = Input(UInt(4.W)) //logic [3:0]
+    	val ram_cfg_i_rf_cfg = Input(UInt(4.W))
     	val hart_id_i = Input(UInt(32.W))
     	val boot_addr_i = Input(UInt(32.W))
     	val instr_req_o = Output(Bool())
@@ -83,7 +92,6 @@ class IbexCoreBlackbox(
     	val crash_dump_o_next_pc = Output(UInt(32.W))
     	val crash_dump_o_last_data_addr = Output(UInt(32.W))
     	val crash_dump_o_exception_addr = Output(UInt(32.W))
-    	//skip rvfi
     	val fetch_enable_i = Input(Bool())
     	val alert_minor_o = Output(Bool())
     	val alert_major_o = Output(Bool())
