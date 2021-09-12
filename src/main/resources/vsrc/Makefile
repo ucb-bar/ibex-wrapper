@@ -55,9 +55,6 @@ INC_DIRS ?= $(foreach dir_name,$(INC_DIR_NAMES),$(call lookup_dirs,$(dir_name)))
 # these flags are specific to Chipyard
 EXTRA_PREPROC_DEFINES ?=
 PREPROC_DEFINES ?= \
-	WT_DCACHE \
-	DISABLE_TRACER \
-	SRAM_NO_INIT \
 	VERILATOR \
 	$(EXTRA_PREPROC_DEFINES)
 
