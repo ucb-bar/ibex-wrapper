@@ -1,3 +1,14 @@
+//******************************************************************************
+// Copyright (c) 2021 - 2021, The Regents of the University of California (Regents).
+// All Rights Reserved. See LICENSE for license details.
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Ibex Tile Wrapper
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
 package ibex
 
 import chisel3._
@@ -8,30 +19,34 @@ import scala.collection.mutable.{ListBuffer}
 
 import freechips.rocketchip.config._
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.diplomaticobjectmodel.logicaltree.{LogicalTreeNode}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.subsystem.{RocketCrossingParams}
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.util._
 import freechips.rocketchip.tile._
-import freechips.rocketchip.amba.axi4._
-import freechips.rocketchip.prci.ClockSinkParameters  
+import freechips.rocketchip.prci.ClockSinkParameters 
 
 case class IbexCoreParams(
+  //Defaults based on Ibex "small" configuration
+  //See https://github.com/lowRISC/ibex for more information
   val bootFreqHz: BigInt = BigInt(1700000000),
   val pmpEnable: Int = 0,
   val pmpGranularity: Int = 0,
   val pmpNumRegions: Int = 4,
+  val mhpmCounterNum: Int = 0,
+  val mhpmCounterWidth: Int = 0,
   val rv32e: Int = 0,
   val rv32m: String = "ibex_pkg::RV32MFast",
   val rv32b: String = "ibex_pkg::RV32BNone",
   val regFile: String = "ibex_pkg::RegFileFF",
   val branchTargetALU: Int = 0,
   val wbStage: Int = 0,
-  val branchPredictor: Int = 0
+  val branchPredictor: Int = 0,
+  val dbgHwBreakNum: Int = 1,
+  val dmHaltAddr: Int = 0x1A110800,
+  val dmExceptionAddr: Int = 0x1A110808
 ) extends CoreParams {
   val useVM: Boolean = false
   val useUser: Boolean = true
@@ -39,7 +54,7 @@ case class IbexCoreParams(
   val useDebug: Boolean = true
   val useAtomics: Boolean = false
   val useAtomicsOnlyForIO: Boolean = false
-  val useCompressed: Boolean = true
+  val useCompressed: Boolean = false
   override val useVector: Boolean = false
   val useSCIE: Boolean = false
   val useRVE: Boolean = true
@@ -62,9 +77,9 @@ case class IbexCoreParams(
   val mtvecInit: Option[BigInt] = Some(BigInt(0))
   val mtvecWritable: Boolean = true
   val nL2TLBWays: Int = 1
-  val lrscCycles: Int = 80 // copied from Rocket
-  val mcontextWidth: Int = 0 // TODO: Check
-  val scontextWidth: Int = 0 // TODO: Check
+  val lrscCycles: Int = 80
+  val mcontextWidth: Int = 0
+  val scontextWidth: Int = 0
   val useNMI: Boolean = true
 }
 
@@ -159,27 +174,18 @@ class IbexTile private(
     mtip := interrupts(2)
     meip := interrupts(3)
   }
-
 }
-
-
 
 class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   // annotate the parameters
   Annotated.params(this, outer.ibexParams)
 
-  val debugHwBreakNum = 1
-  val dmHaltAddress = 0x1A110800
-  val dmExceptionAddress = 0x1A110808
-  val mhpmCounterNumber = 0
-  val mhmpCounterWid = 40
-
   val core = Module(new IbexCoreBlackbox(
     pmpEnable = outer.ibexParams.core.pmpEnable,
     pmpGranularity = outer.ibexParams.core.pmpGranularity,
     pmpNumRegions = outer.ibexParams.core.pmpNumRegions,
-    mhpmCounterNum = mhpmCounterNumber,
-    mhpmCounterWidth = mhmpCounterWid,
+    mhpmCounterNum = outer.ibexParams.core.mhpmCounterNum,
+    mhpmCounterWidth = outer.ibexParams.core.mhpmCounterWidth,
     rv32e = outer.ibexParams.core.rv32e,
     rv32m = outer.ibexParams.core.rv32m,
     rv32b = outer.ibexParams.core.rv32b,
@@ -187,19 +193,16 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
     branchTargetALU = outer.ibexParams.core.branchTargetALU,
     wbStage = outer.ibexParams.core.wbStage,
     branchPredictor = outer.ibexParams.core.branchPredictor,
-    dbgHwBreakNum = debugHwBreakNum,
-    dmHaltAddr = dmHaltAddress,
-    dmExceptionAddr = dmExceptionAddress
+    dbgHwBreakNum = outer.ibexParams.core.dbgHwBreakNum,
+    dmHaltAddr = outer.ibexParams.core.dmHaltAddr,
+    dmExceptionAddr = outer.ibexParams.core.dmExceptionAddr
   ))
-
 
   //connect signals
   core.io.clk_i := clock
   core.io.rst_ni := ~reset.asBool
   core.io.boot_addr_i := outer.resetVectorSinkNode.bundle
   core.io.hart_id_i := outer.hartIdSinkNode.bundle
-
-
 
   outer.connectIbexInterrupts(core.io.debug_req_i, core.io.irq_software_i, core.io.irq_timer_i, core.io.irq_external_i)
   core.io.irq_nm_i := 0.U //recoverable nmi, tying off
@@ -213,23 +216,21 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   val dmem_state = RegInit(s_ready)
 
   val dmem_addr = Reg(UInt(32.W))
-  val dmem_data = Reg(UInt(64.W))
+  val dmem_data = Reg(UInt(32.W))
   val dmem_mask = Reg(UInt(8.W))
   val byte_en = Reg(UInt(4.W))
   val num_bytes = Reg(UInt(3.W))
   val r_size = Reg(UInt(2.W))
   val w_size = Reg(UInt(2.W))
-  val dmem_word_sel = Reg(Bool()) //used to handle size difference between TL data bus and Ibex input data
   r_size := 2.U
 
   when (dmem_state === s_ready && core.io.data_req_o) {
     dmem_state := s_active
     dmem_addr := core.io.data_addr_o + (PriorityEncoder(core.io.data_be_o) * core.io.data_we_o) //if write, shift address based on mask
-    dmem_data := core.io.data_wdata_o << (32.U * ((core.io.data_addr_o & 4.U) === 4.U)) //shift based on word alignment
+    dmem_data := core.io.data_wdata_o 
     byte_en := core.io.data_be_o
-    dmem_mask := core.io.data_be_o << (4.U * ((core.io.data_addr_o & 4.U) === 4.U))
+    dmem_mask := core.io.data_be_o 
     w_size := PriorityEncoder(PopCount(core.io.data_be_o)) //log2Ceil
-    dmem_word_sel := ((core.io.data_addr_o & 4.U) === 4.U)
   }
   when (dmem_state === s_active && dmem.a.fire()) {
     dmem_state := s_inflight
@@ -246,7 +247,7 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   val dmem_put = dmem_edge.Put(0.U, dmem_addr, w_size, dmem_data, dmem_mask)._2
 
   dmem.a.bits := Mux(core.io.data_we_o, dmem_put, dmem_get)             //write or read depending on write enable
-  core.io.data_rdata_i := dmem.d.bits.data >> (32.U * dmem_word_sel)   //read data
+  core.io.data_rdata_i := dmem.d.bits.data                              //read data
   core.io.data_err_i := dmem.d.bits.corrupt | dmem.d.bits.denied        //set error
 
   //unused
@@ -254,18 +255,15 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   dmem.c.ready := true.B
   dmem.e.ready := true.B
 
-
   //IMEM
   val (imem, imem_edge) = outer.imemNode.out(0)
   val imem_state = RegInit(s_ready)
 
   val imem_addr = Reg(UInt(32.W))
-  val r_word_sel = Reg(Bool()) // 1 for upper half of doubleword, 0 for lower half
 
   when (imem_state === s_ready && core.io.instr_req_o) {
     imem_state := s_active
     imem_addr := core.io.instr_addr_o
-    r_word_sel := ((core.io.instr_addr_o & 4.U) === 4.U)
   }
   when (imem_state === s_active && imem.a.fire()) {
     imem_state := s_inflight
@@ -282,7 +280,7 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   val imem_get = imem_edge.Get(0.U, imem_addr, r_size)._2
 
   imem.a.bits := imem_get
-  core.io.instr_rdata_i := imem.d.bits.data >> (32.U * r_word_sel)
+  core.io.instr_rdata_i := imem.d.bits.data
   core.io.instr_err_i := imem.d.bits.corrupt | imem.d.bits.denied
 
   //unused
@@ -302,7 +300,3 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   //DFT not used
   core.io.scan_rst_ni := 1.U
 }
-
-
-
-
