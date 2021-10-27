@@ -1,3 +1,14 @@
+//******************************************************************************
+// Copyright (c) 2021 - 2021, The Regents of the University of California (Regents).
+// All Rights Reserved. See LICENSE for license details.
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Ibex Tile Wrapper
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
 package ibex
 
 import chisel3._
@@ -5,8 +16,6 @@ import chisel3.util.{log2Up}
 
 import freechips.rocketchip.config.{Parameters, Config, Field}
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.devices.tilelink.{BootROMParams}
-import freechips.rocketchip.diplomacy.{SynchronousCrossing, AsynchronousCrossing, RationalCrossing}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.tile._
 
@@ -27,6 +36,6 @@ class WithNIbexCores(n: Int = 1, overrideIdOffset: Option[Int] = None) extends C
       )
     } ++ prev
   }
-  case SystemBusKey => up(SystemBusKey, site).copy(beatBytes = 8)
+  case SystemBusKey => up(SystemBusKey, site).copy(beatBytes = 4)
   case XLen => 32
 })
