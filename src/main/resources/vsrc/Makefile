@@ -41,7 +41,16 @@ IBEX_VSRCS = \
 	$(ibex_dir)/rtl/ibex_top.sv \
 	$(ibex_dir)/rtl/ibex_wb_stage.sv \
 	$(ibex_dir)/dv/uvm/core_ibex/common/prim/prim_clock_gating.sv \
-	$(ibex_dir)/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_generic_clock_gating.sv
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_generic_clock_gating.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_39_32_enc.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_39_32_dec.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_28_22_enc.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_28_22_dec.sv \
+	$(ibex_dir)/dv/uvm/core_ibex/common/prim/prim_ram_1p.sv \
+	$(ibex_dir)/dv/uvm/core_ibex/common/prim/prim_buf.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_generic_ram_1p.sv \
+	$(ibex_dir)/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_generic_buf.sv 
 
 IBEX_WRAPPER = \
 	$(vsrc_dir)/IbexCoreBlackbox.sv
@@ -66,6 +75,7 @@ $(PREPROC_VERILOG): $(ALL_VSRCS)
 	$(foreach def,$(PREPROC_DEFINES),echo "\`undef $(def)" >> undef.v; )
 	cat def.v $(ALL_VSRCS) undef.v > combined.sv
 	$(PREPROC_SCRIPT) combined.sv $@ $(INC_DIRS)
+	sed -e '/^\s*prim_xilinx_clock_gating.*;$$/ s|^|//|; /^\s*prim_xilinx_clock_gating/, /);$$/ s|^|//|' $@
 	rm -rf combined.sv def.v undef.v
 
 clean:
