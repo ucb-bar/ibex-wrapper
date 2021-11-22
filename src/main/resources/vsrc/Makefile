@@ -75,7 +75,7 @@ $(PREPROC_VERILOG): $(ALL_VSRCS)
 	$(foreach def,$(PREPROC_DEFINES),echo "\`undef $(def)" >> undef.v; )
 	cat def.v $(ALL_VSRCS) undef.v > combined.sv
 	$(PREPROC_SCRIPT) combined.sv $@ $(INC_DIRS)
-	sed -i '/.*prim_xilinx_clock_gating/,/;/c\    // Remove when upgrading verilator version' $@
+	sed -i '/.*prim_xilinx_clock_gating/,/;/c\    // Remove when upgrading verilator version' $@ # Remove FPGA module so Ibex works in Verilator v4.304
 	rm -rf combined.sv def.v undef.v
 
 clean:
