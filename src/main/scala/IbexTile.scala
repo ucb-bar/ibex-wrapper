@@ -49,6 +49,7 @@ case class IbexCoreParams(
   val dmExceptionAddr: Int = 0x1A110808
 ) extends CoreParams {
   val useVM: Boolean = false
+  val useHypervisor: Boolean = false
   val useUser: Boolean = true
   val useSupervisor: Boolean = false
   val useDebug: Boolean = true
@@ -81,6 +82,7 @@ case class IbexCoreParams(
   val mcontextWidth: Int = 0
   val scontextWidth: Int = 0
   val useNMI: Boolean = true
+  val nPTECacheEntries: Int = 0
 }
 
 case class IbexTileAttachParams(
