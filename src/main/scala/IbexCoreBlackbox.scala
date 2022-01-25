@@ -53,7 +53,7 @@ class IbexCoreBlackbox(
             "DM_HALT_ADDR" -> IntParam(dmHaltAddr),
             "DM_EXCEPTION_ADDR" -> IntParam(dmExceptionAddr))
 )
-    with HasBlackBoxResource
+    with HasBlackBoxPath
 {
     val io = IO(new Bundle {
         val clk_i = Input(Clock())
@@ -97,8 +97,12 @@ class IbexCoreBlackbox(
         val scan_rst_ni = Input(Bool())
     })
 
-    val proc = "make -C generators/ibex/src/main/resources/vsrc default"
+    val chipyardDir = System.getProperty("user.dir")
+    val ibexVsrcDir = s"$chipyardDir/generators/ibex/src/main/resources/vsrc"
+
+    val proc = s"make -C $ibexVsrcDir default"
     require (proc.! == 0, "Failed to run preprocessing step")
 
-    addResource("/vsrc/IbexCoreBlackbox.preprocessed.sv")
+    // generated from preprocessing step
+    addPath(s"$ibexVsrcDir/IbexCoreBlackbox.preprocessed.sv")
 }
