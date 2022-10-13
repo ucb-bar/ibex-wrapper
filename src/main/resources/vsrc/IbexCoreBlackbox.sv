@@ -14,9 +14,9 @@ module IbexCoreBlackbox
         parameter MHPM_COUNTER_NUM = 0,
         parameter MHPM_COUNTER_WIDTH = 0,
         parameter RV32E = 0,
-        parameter RV32M = ibex_pkg::RV32MFast,
-        parameter RV32B = ibex_pkg::RV32BNone,
-        parameter REGFILE = ibex_pkg::RegFileFF,
+        parameter RV32M = 2,
+        parameter RV32B = 0,
+        parameter REGFILE = 0,
         parameter BRANCH_TARGET_ALU = 0,
         parameter WB_STAGE = 0,
         parameter BRANCH_PREDICTOR = 0,
@@ -26,8 +26,8 @@ module IbexCoreBlackbox
         parameter DBG_HW_BREAK_NUM = 0,
         parameter [31:0] DM_HALT_ADDR = 0,
         parameter [31:0] DM_EXCEPTION_ADDR = 0
-    ) 
-( 
+    )
+(
     // Clock and Reset
     input  clk_i,
     input  rst_ni,
