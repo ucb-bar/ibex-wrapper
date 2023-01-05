@@ -26,7 +26,7 @@ import freechips.rocketchip.tilelink._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.util._
 import freechips.rocketchip.tile._
-import freechips.rocketchip.prci.ClockSinkParameters 
+import freechips.rocketchip.prci.ClockSinkParameters
 
 case class IbexCoreParams(
   //Defaults based on Ibex "small" configuration
@@ -38,9 +38,9 @@ case class IbexCoreParams(
   val mhpmCounterNum: Int = 0,
   val mhpmCounterWidth: Int = 0,
   val rv32e: Int = 0,
-  val rv32m: String = "ibex_pkg::RV32MFast",
-  val rv32b: String = "ibex_pkg::RV32BNone",
-  val regFile: String = "ibex_pkg::RegFileFF",
+  val rv32m: String = "RV32MFast",
+  val rv32b: String = "RV32BNone",
+  val regFile: String = "RegFileFF",
   val branchTargetALU: Int = 0,
   val wbStage: Int = 0,
   val branchPredictor: Int = 0,
@@ -182,6 +182,34 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   // annotate the parameters
   Annotated.params(this, outer.ibexParams)
 
+  // convert string params into int params (since chisel rawparams are converted to strings
+  // which prevents casting from string to enum in SV)
+  // following matches ibex_pkg
+  val rv32mInt: Option[Int] = outer.ibexParams.core.rv32m match {
+    case "RV32MNone" => Some(0)
+    case "RV32MSlow" => Some(1)
+    case "RV32MFast" => Some(2)
+    case "RV32MSingleCycle" => Some(3)
+    case _ => None
+  }
+  require(rv32mInt.isDefined, "Invalid RV32M argument")
+
+  val rv32bInt: Option[Int] = outer.ibexParams.core.rv32b match {
+    case "RV32BNone" => Some(0)
+    case "RV32BBalanced" => Some(1)
+    case "RV32BFull" => Some(2)
+    case _ => None
+  }
+  require(rv32bInt.isDefined, "Invalid RV32B argument")
+
+  val regFileInt: Option[Int] = outer.ibexParams.core.regFile match {
+    case "RegFileFF" => Some(0)
+    case "RegFileFPGA" => Some(1)
+    case "RegFileLatch" => Some(2)
+    case _ => None
+  }
+  require(regFileInt.isDefined, "Invalid RegFile argument")
+
   val core = Module(new IbexCoreBlackbox(
     pmpEnable = outer.ibexParams.core.pmpEnable,
     pmpGranularity = outer.ibexParams.core.pmpGranularity,
@@ -189,9 +217,9 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
     mhpmCounterNum = outer.ibexParams.core.mhpmCounterNum,
     mhpmCounterWidth = outer.ibexParams.core.mhpmCounterWidth,
     rv32e = outer.ibexParams.core.rv32e,
-    rv32m = outer.ibexParams.core.rv32m,
-    rv32b = outer.ibexParams.core.rv32b,
-    regfile = outer.ibexParams.core.regFile,
+    rv32m = rv32mInt.get,
+    rv32b = rv32bInt.get,
+    regfile = regFileInt.get,
     branchTargetALU = outer.ibexParams.core.branchTargetALU,
     wbStage = outer.ibexParams.core.wbStage,
     branchPredictor = outer.ibexParams.core.branchPredictor,
@@ -229,9 +257,9 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   when (dmem_state === s_ready && core.io.data_req_o) {
     dmem_state := s_active
     dmem_addr := core.io.data_addr_o + (PriorityEncoder(core.io.data_be_o) * core.io.data_we_o) //if write, shift address based on mask
-    dmem_data := core.io.data_wdata_o 
+    dmem_data := core.io.data_wdata_o
     byte_en := core.io.data_be_o
-    dmem_mask := core.io.data_be_o 
+    dmem_mask := core.io.data_be_o
     w_size := PriorityEncoder(PopCount(core.io.data_be_o)) //log2Ceil
   }
   when (dmem_state === s_active && dmem.a.fire()) {
