@@ -83,6 +83,11 @@ case class IbexCoreParams(
   val scontextWidth: Int = 0
   val useNMI: Boolean = true
   val nPTECacheEntries: Int = 0
+  val useBitManip: Boolean = false
+  val useBitManipCrypto: Boolean = false
+  val useCryptoNIST: Boolean = false
+  val useCryptoSM: Boolean = false
+  val traceHasWdata: Boolean = false
 }
 
 case class IbexTileAttachParams(
@@ -231,6 +236,7 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
   //connect signals
   core.io.clk_i := clock
   core.io.rst_ni := ~reset.asBool
+  core.io.test_en_i := false.B
   core.io.boot_addr_i := outer.resetVectorSinkNode.bundle
   core.io.hart_id_i := outer.hartIdSinkNode.bundle
 
