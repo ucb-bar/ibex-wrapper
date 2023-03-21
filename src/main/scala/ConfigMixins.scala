@@ -14,7 +14,7 @@ package ibex
 import chisel3._
 import chisel3.util.{log2Up}
 
-import freechips.rocketchip.config.{Parameters, Config, Field}
+import org.chipsalliance.cde.config.{Parameters, Config, Field}
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.tile._
