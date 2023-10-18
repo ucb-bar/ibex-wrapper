@@ -133,7 +133,7 @@ class IbexTile private(
     this(params, crossing.crossingType, lookup, p)
 
   //TileLink nodes
-  val intOutwardNode = Some(IntIdentityNode())
+  val intOutwardNode = None
   val masterNode = visibilityNode
   val slaveNode = TLIdentityNode()
 
