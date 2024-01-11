@@ -25,17 +25,18 @@ import freechips.rocketchip.tile._
  *
  * @param n amount of tiles to duplicate
  */
-class WithNIbexCores(n: Int = 1, overrideIdOffset: Option[Int] = None) extends Config((site, here, up) => {
+class WithNIbexCores(n: Int = 1) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => {
     val prev = up(TilesLocated(InSubsystem), site)
-    val idOffset = overrideIdOffset.getOrElse(prev.size)
+    val idOffset = up(NumTiles)
     (0 until n).map { i =>
       IbexTileAttachParams(
-        tileParams = IbexTileParams(hartId = i + idOffset),
+        tileParams = IbexTileParams(tileId = i + idOffset),
         crossingParams = RocketCrossingParams()
       )
     } ++ prev
   }
   case SystemBusKey => up(SystemBusKey, site).copy(beatBytes = 4)
   case XLen => 32
+  case NumTiles => up(NumTiles) + n
 })

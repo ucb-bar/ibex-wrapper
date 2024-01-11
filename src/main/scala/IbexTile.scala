@@ -101,7 +101,7 @@ case class IbexTileAttachParams(
 
 case class IbexTileParams(
   name: Option[String] = Some("ibex_tile"),
-  hartId: Int = 0,
+  tileId: Int = 0,
   val core: IbexCoreParams = IbexCoreParams()
 ) extends InstantiableTileParams[IbexTile]
 {
@@ -112,9 +112,11 @@ case class IbexTileParams(
   val dcache: Option[DCacheParams] = None //no dcache
   val icache: Option[ICacheParams] = None //optional icache, currently in draft so turning option off
   val clockSinkParams: ClockSinkParameters = ClockSinkParameters()
-  def instantiate(crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): IbexTile = {
+  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): IbexTile = {
     new IbexTile(this, crossing, lookup)
   }
+  val baseName = name.getOrElse("ibex_tile")
+  val uniqueName = s"${baseName}_$tileId"
 }
 
 class IbexTile private(
@@ -127,11 +129,11 @@ class IbexTile private(
   with SourcesExternalNotifications
 {
 
-  def this(params: IbexTileParams, crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
+  def this(params: IbexTileParams, crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
     this(params, crossing.crossingType, lookup, p)
 
   //TileLink nodes
-  val intOutwardNode = IntIdentityNode()
+  val intOutwardNode = None
   val masterNode = visibilityNode
   val slaveNode = TLIdentityNode()
 
@@ -172,7 +174,7 @@ class IbexTile private(
   }
 
   ResourceBinding {
-    Resource(cpuDevice, "reg").bind(ResourceAddress(hartId))
+    Resource(cpuDevice, "reg").bind(ResourceAddress(tileId))
   }
 
   def connectIbexInterrupts(debug: Bool, msip: Bool, mtip: Bool, meip: Bool) {
