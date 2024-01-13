@@ -88,6 +88,7 @@ case class IbexCoreParams(
   val useCryptoNIST: Boolean = false
   val useCryptoSM: Boolean = false
   val traceHasWdata: Boolean = false
+  val traceHasRFWdata: Boolean = false
   val useConditionalZero: Boolean = false
 }
 
