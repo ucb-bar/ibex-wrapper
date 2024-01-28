@@ -271,10 +271,10 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
     dmem_mask := core.io.data_be_o
     w_size := PriorityEncoder(PopCount(core.io.data_be_o)) //log2Ceil
   }
-  when (dmem_state === s_active && dmem.a.fire()) {
+  when (dmem_state === s_active && dmem.a.fire) {
     dmem_state := s_inflight
   }
-  when (dmem_state === s_inflight && dmem.d.fire()) {
+  when (dmem_state === s_inflight && dmem.d.fire) {
     dmem_state := s_ready
   }
   dmem.a.valid := dmem_state === s_active
@@ -304,10 +304,10 @@ class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
     imem_state := s_active
     imem_addr := core.io.instr_addr_o
   }
-  when (imem_state === s_active && imem.a.fire()) {
+  when (imem_state === s_active && imem.a.fire) {
     imem_state := s_inflight
   }
-  when (imem_state === s_inflight && imem.d.fire()) {
+  when (imem_state === s_inflight && imem.d.fire) {
     imem_state := s_ready
   }
 
