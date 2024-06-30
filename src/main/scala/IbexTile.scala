@@ -48,6 +48,8 @@ case class IbexCoreParams(
   val dmHaltAddr: Int = 0x1A110800,
   val dmExceptionAddr: Int = 0x1A110808
 ) extends CoreParams {
+  val xLen = 32
+  val pgLevels = 2
   val useVM: Boolean = false
   val useHypervisor: Boolean = false
   val useUser: Boolean = true
