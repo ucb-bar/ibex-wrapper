@@ -91,6 +91,9 @@ case class IbexCoreParams(
   val useCryptoSM: Boolean = false
   val traceHasWdata: Boolean = false
   val useConditionalZero: Boolean = false
+  val useZba: Boolean = false
+  val useZbb: Boolean = false
+  val useZbs: Boolean = false
 }
 
 case class IbexTileAttachParams(
