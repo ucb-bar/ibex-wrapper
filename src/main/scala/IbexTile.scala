@@ -85,10 +85,6 @@ case class IbexCoreParams(
   val scontextWidth: Int = 0
   val useNMI: Boolean = true
   val nPTECacheEntries: Int = 0
-  val useBitManip: Boolean = false
-  val useBitManipCrypto: Boolean = false
-  val useCryptoNIST: Boolean = false
-  val useCryptoSM: Boolean = false
   val traceHasWdata: Boolean = false
   val useConditionalZero: Boolean = false
   val useZba: Boolean = false
