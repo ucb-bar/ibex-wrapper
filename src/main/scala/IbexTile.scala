@@ -188,9 +188,6 @@ class IbexTile private(
 }
 
 class IbexTileModuleImp(outer: IbexTile) extends BaseTileModuleImp(outer){
-  // annotate the parameters
-  Annotated.params(this, outer.ibexParams)
-
   // convert string params into int params (since chisel rawparams are converted to strings
   // which prevents casting from string to enum in SV)
   // following matches ibex_pkg
